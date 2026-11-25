@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>بازی‌های کوچک</title>
+<style>
+:root{--bg:#f4f5f7;--card:#fff;--tx:#1c1f26;--mu:#6b7280;--ac:#2563eb;--l:#f0d9b5;--d:#b58863;--sel:#facc15;--dot:#16a34a;--r:#dc2626}
+@media(prefers-color-scheme:dark){:root{--bg:#12141a;--card:#1c1f27;--tx:#eef0f4;--mu:#9aa1ae;--ac:#60a5fa;--l:#d8c3a0;--d:#8b6b4a}}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:var(--bg);color:var(--tx);font-family:Tahoma,Vazirmatn,system-ui,sans-serif;padding:max(14px,env(safe-area-inset-top)) 14px max(14px,env(safe-area-inset-bottom))}
+h1{font-size:20px;margin:6px 0 14px;text-align:center}
+.card{display:flex;align-items:center;gap:12px;background:var(--card);border-radius:16px;padding:16px;margin-bottom:10px;width:100%;border:0;color:var(--tx);font:inherit;text-align:right}
+.card .ic{font-size:34px}.card b{display:block;font-size:16px}.card small{color:var(--mu)}
+.card[disabled]{opacity:.5}
+button.btn{background:var(--ac);color:#fff;border:0;border-radius:12px;padding:10px 16px;font:inherit;cursor:pointer}
+button.ghost{background:var(--card);color:var(--tx)}
+#bar{display:flex;gap:8px;justify-content:space-between;align-items:center;margin-bottom:10px}
+#st{text-align:center;min-height:24px;margin:10px 0;font-weight:bold}
+#board{direction:ltr;display:grid;grid-template-columns:repeat(8,1fr);grid-template-rows:repeat(8,1fr);width:var(--b,340px);height:var(--b,340px);margin:0 auto;border-radius:8px;overflow:hidden}
+.sq{display:flex;align-items:center;justify-content:center;font-size:calc(var(--b,340px)/11);line-height:1;position:relative;user-select:none;touch-action:manipulation;cursor:pointer}
+.sq.l{background:var(--l)}.sq.d{background:var(--d)}
+.sq.sel{background:var(--sel)}.sq.chk{background:var(--r)}
+.sq.mv::after{content:"";position:absolute;width:28%;height:28%;border-radius:50%;background:var(--dot);opacity:.8}
+.w{color:#fff;text-shadow:0 0 2px #000,0 0 2px #000,0 0 1px #000}.k{color:#111}
+.hide{display:none}
+.g3{direction:ltr;display:grid;grid-template-columns:repeat(3,1fr);gap:6px;width:var(--b,320px);margin:0 auto}
+.g3 .cell{height:calc(var(--b,320px)/3 - 6px);background:var(--card);border:0;border-radius:12px;font-size:calc(var(--b,320px)/5);color:var(--tx);font-weight:bold;touch-action:manipulation}
+.c4{direction:ltr;display:grid;grid-template-columns:repeat(7,1fr);gap:4px;width:var(--b,340px);margin:0 auto;background:#2563eb;padding:6px;border-radius:12px}
+.c4 .hole{height:calc(var(--b,340px)/7 - 9px);border-radius:50%;background:var(--bg);touch-action:manipulation;cursor:pointer}
+#err{display:none;background:#dc2626;color:#fff;padding:8px;border-radius:8px;margin-bottom:8px;font-size:13px;direction:ltr;word-break:break-all}
+#ver{text-align:center;color:var(--mu);font-size:12px;margin-top:14px}
+.c4 .R{background:#dc2626}.c4 .Y{background:#facc15}
+</style>
+</head>
+<body>
+<div id="err"></div>
+<div id="menu">
+  <h1>🎮 بازی‌های کوچک</h1>
+  <button class="card" onclick="openChess()"><span class="ic">♟️</span><span><b>شطرنج</b><small>بازی با کامپیوتر (شما سفید)</small></span></button>
+  <button class="card" onclick="openG('xo')"><span class="ic">❌</span><span><b>دوز (XO)</b><small>با کامپیوتر</small></span></button>
+  <button class="card" onclick="openG('c4')"><span class="ic">🔴</span><span><b>چهار در یک ردیف</b><small>با کامپیوتر</small></span></button>
+  <button class="card" disabled><span class="ic">🃏</span><span><b>پاستور و بازی آنلاین</b><small>به‌زودی (نیاز به سرور HTTPS)</small></span></button>
+  <div id="ver">نسخه ۲</div>
+</div>
+
+<div id="chess" class="hide">
+  <div id="bar">
+    <button class="btn ghost" onclick="back()">→ بازگشت</button>
+    <button class="btn" onclick="initChess()">بازی جدید</button>
+  </div>
+  <div id="st"></div>
+  <div id="board"></div>
+</div>
+
+<div id="g" class="hide">
+  <div id="bar">
+    <button class="btn ghost" onclick="backG()">→ بازگشت</button>
+    <button class="btn" onclick="cur==='xo'?xo():c4()">بازی جدید</button>
+  </div>
+  <div id="st2" style="text-align:center;font-weight:bold;margin:10px 0;min-height:24px"></div>
+  <div id="area"></div>
+</div>
+
+<script>
+window.onerror=function(m,u,l){var d=document.getElementById('err');d.textContent='خطا: '+m+' (خط '+l+')';d.style.display='block';};
+function fit(){var w=Math.max(260,Math.min(window.innerWidth-28,440));document.documentElement.style.setProperty('--b',w+'px');}
+fit();window.addEventListener('resize',fit);
+setTimeout(function(){try{var sc=document.createElement('script');sc.src='https://tapi.bale.ai/miniapp.js?3';sc.onload=function(){try{Bale.WebApp.ready();}catch(e){}};document.head.appendChild(sc);}catch(e){}},400);
+
+const $=id=>document.getElementById(id);
+function openChess(){$('menu').classList.add('hide');$('chess').classList.remove('hide');initChess();}
+function back(){$('chess').classList.add('hide');$('menu').classList.remove('hide');}
+
+/* ---------- شطرنج ---------- */
+const GL={p:'♟',n:'♞',b:'♝',r:'♜',q:'♛',k:'♚'};
+const VAL={p:100,n:320,b:330,r:500,q:900,k:0};
+const DIR={n:[[1,2],[2,1],[-1,2],[-2,1],[1,-2],[2,-1],[-1,-2],[-2,-1]],b:[[1,1],[1,-1],[-1,1],[-1,-1]],r:[[1,0],[-1,0],[0,1],[0,-1]]};
+DIR.q=DIR.b.concat(DIR.r);DIR.k=DIR.q;
+let B,sel=-1,targets=[],over=false,busy=false;
+
+const isW=c=>c!=='.'&&c===c.toUpperCase();
+
+function gen(b,i,att){
+  const p=b[i],w=isW(p),t=p.toLowerCase(),x=i%8,y=i>>3,o=[];
+  if(t==='p'){
+    const d=w?-1:1;
+    for(const dx of[-1,1]){const nx=x+dx,ny=y+d;
+      if(nx>=0&&nx<8&&ny>=0&&ny<8){const c=b[ny*8+nx];if(att||(c!=='.'&&isW(c)!==w))o.push(ny*8+nx);}}
+    if(!att){const ny=y+d;
+      if(ny>=0&&ny<8&&b[ny*8+x]==='.'){o.push(ny*8+x);
+        if(y===(w?6:1)&&b[(y+2*d)*8+x]==='.')o.push((y+2*d)*8+x);}}
+    return o;
+  }
+  const sl=t==='b'||t==='r'||t==='q';
+  for(const[dx,dy]of DIR[t]){
+    let nx=x+dx,ny=y+dy;
+    while(nx>=0&&nx<8&&ny>=0&&ny<8){
+      const c=b[ny*8+nx];
+      if(c==='.')o.push(ny*8+nx);
+      else{if(isW(c)!==w)o.push(ny*8+nx);break;}
+      if(!sl)break;nx+=dx;ny+=dy;
+    }
+  }
+  return o;
+}
+function attacked(b,sq,byW){
+  for(let i=0;i<64;i++){const c=b[i];
+    if(c!=='.'&&isW(c)===byW&&gen(b,i,true).includes(sq))return true;}
+  return false;
+}
+function move(b,i,j){
+  const n=b.slice();let p=n[i];n[i]='.';
+  if(p==='P'&&(j>>3)===0)p='Q';
+  if(p==='p'&&(j>>3)===7)p='q';
+  n[j]=p;return n;
+}
+function inCheck(b,w){const k=b.indexOf(w?'K':'k');return k<0||attacked(b,k,!w);}
+function legal(b,i){
+  const w=isW(b[i]);
+  return gen(b,i,false).filter(j=>!inCheck(move(b,i,j),w));
+}
+function all(b,w){
+  const r=[];
+  for(let i=0;i<64;i++){const c=b[i];
+    if(c!=='.'&&isW(c)===w)for(const j of legal(b,i))r.push([i,j]);}
+  return r;
+}
+function evalB(b){
+  let s=0;
+  for(let i=0;i<64;i++){const c=b[i];if(c==='.')continue;
+    const t=c.toLowerCase(),v=VAL[t]+(t==='p'?(isW(c)?(6-(i>>3)):((i>>3)-1))*6:0)
+      +((i%8>1&&i%8<6&&(i>>3)>1&&(i>>3)<6)?8:0);
+    s+=isW(c)?v:-v;}
+  return s;
+}
+function search(b,w,d,a,be){
+  const ms=all(b,w);
+  if(!ms.length)return inCheck(b,w)?(w?-99999-d:99999+d):0;
+  if(d===0)return evalB(b);
+  ms.sort((m,n)=>(b[n[1]]!=='.')-(b[m[1]]!=='.'));
+  if(w){let v=-1e9;for(const[i,j]of ms){v=Math.max(v,search(move(b,i,j),false,d-1,a,be));a=Math.max(a,v);if(a>=be)break;}return v;}
+  let v=1e9;for(const[i,j]of ms){v=Math.min(v,search(move(b,i,j),true,d-1,a,be));be=Math.min(be,v);if(a>=be)break;}return v;
+}
+function aiMove(){
+  const ms=all(B,false);let best=null,bv=1e9;
+  ms.sort(()=>Math.random()-.5);
+  for(const[i,j]of ms){const v=search(move(B,i,j),true,1,-1e9,1e9);if(v<bv){bv=v;best=[i,j];}}
+  return best;
+}
+
+function chessStatus(){
+  if(over)return;
+  const ws=all(B,true).length,bs=all(B,false).length;
+  if(!ws){over=true;return inCheck(B,true)?'♚ مات! کامپیوتر برد 😅':'پات (مساوی)';}
+  if(!bs){over=true;return inCheck(B,false)?'🎉 مات! شما بردید':'پات (مساوی)';}
+  return inCheck(B,true)?'کیش! نوبت شما':'نوبت شماست (سفید)';
+}
+function draw(){
+  const bd=$('board');bd.innerHTML='';
+  const kw=B.indexOf('K'),kb=B.indexOf('k');
+  for(let i=0;i<64;i++){
+    const c=B[i],e=document.createElement('div');
+    e.className='sq '+(((i%8)+(i>>3))%2?'d':'l');
+    if(i===sel)e.classList.add('sel');
+    if(targets.includes(i))e.classList.add('mv');
+    if(c!=='.'&&c.toLowerCase()==='k'&&inCheck(B,isW(c)))e.classList.add('chk');
+    if(c!=='.'){e.textContent=GL[c.toLowerCase()];e.classList.add(isW(c)?'w':'k');}
+    e.onclick=()=>tap(i);
+    bd.appendChild(e);
+  }
+}
+function tap(i){
+  if(over||busy)return;
+  const c=B[i];
+  if(sel>=0&&targets.includes(i)){
+    B=move(B,sel,i);sel=-1;targets=[];draw();
+    const s=chessStatus();
+    if(s){$('st').textContent=s;return;}
+    busy=true;$('st').textContent='کامپیوتر داره فکر می‌کنه...';
+    setTimeout(()=>{
+      const m=aiMove();
+      if(m)B=move(B,m[0],m[1]);
+      busy=false;draw();
+      $('st').textContent=chessStatus()||'';
+    },60);
+    return;
+  }
+  if(c!=='.'&&isW(c)){sel=i;targets=legal(B,i);}
+  else{sel=-1;targets=[];}
+  draw();
+}
+function initChess(){
+  B=('rnbqkbnrpppppppp'+'.'.repeat(32)+'PPPPPPPPRNBQKBNR').split('');
+  sel=-1;targets=[];over=false;busy=false;
+  $('st').textContent='نوبت شماست (سفید)';
+  draw();
+}
+
+/* ---------- دوز و چهار در یک ردیف ---------- */
+let cur='xo',X,xo_over,C,c_over;
+function openG(n){$('menu').classList.add('hide');$('g').classList.remove('hide');n==='xo'?xo():c4();}
+function backG(){$('g').classList.add('hide');$('menu').classList.remove('hide');}
+const WL=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+function win3(b){for(const[a,c,d]of WL)if(b[a]&&b[a]===b[c]&&b[a]===b[d])return b[a];return b.every(v=>v)?'-':'';}
+function mm(b,p){const w=win3(b);if(w)return w==='O'?1:w==='X'?-1:0;
+  let best=p==='O'?-2:2;
+  for(let i=0;i<9;i++)if(!b[i]){b[i]=p;const v=mm(b,p==='O'?'X':'O');b[i]='';best=p==='O'?Math.max(best,v):Math.min(best,v);}
+  return best;}
+function xo(){cur='xo';X=Array(9).fill('');xo_over=false;$('st2').textContent='نوبت شما (X)';drawX();}
+function drawX(){const a=$('area');a.innerHTML='<div class="g3"></div>';const g=a.firstChild;
+  X.forEach((v,i)=>{const b=document.createElement('button');b.className='cell';b.textContent=v;b.onclick=()=>tapX(i);g.appendChild(b);});}
+function endX(){const w=win3(X);if(!w)return false;xo_over=true;
+  $('st2').textContent=w==='X'?'🎉 شما بردید':w==='O'?'کامپیوتر برد 😅':'مساوی';return true;}
+function tapX(i){if(xo_over||X[i])return;X[i]='X';drawX();if(endX())return;
+  const free=X.map((v,k)=>v?-1:k).filter(k=>k>=0);let pick;
+  if(Math.random()<0.25)pick=free[Math.floor(Math.random()*free.length)];
+  else{let bv=-2;for(const k of free){X[k]='O';const v=mm(X,'X');X[k]='';if(v>bv){bv=v;pick=k;}}}
+  X[pick]='O';drawX();endX();}
+function drop(b,c,p){for(let r=5;r>=0;r--)if(!b[r*7+c]){b[r*7+c]=p;return true;}return false;}
+function four(b,p){for(let r=0;r<6;r++)for(let c=0;c<7;c++)for(const[dr,dc]of[[0,1],[1,0],[1,1],[1,-1]]){
+  let k=0;for(;k<4;k++){const rr=r+dr*k,cc=c+dc*k;if(rr<0||rr>5||cc<0||cc>6||b[rr*7+cc]!==p)break;}
+  if(k===4)return true;}return false;}
+function c4(){cur='c4';C=Array(42).fill('');c_over=false;$('st2').textContent='نوبت شما (قرمز) — روی ستون بزن';drawC();}
+function drawC(){const a=$('area');a.innerHTML='<div class="c4"></div>';const g=a.firstChild;
+  C.forEach((v,i)=>{const h=document.createElement('div');h.className='hole '+v;h.onclick=()=>tapC(i%7);g.appendChild(h);});}
+function endC(){if(four(C,'R')){c_over=true;$('st2').textContent='🎉 شما بردید';return true;}
+  if(four(C,'Y')){c_over=true;$('st2').textContent='کامپیوتر برد 😅';return true;}
+  if(C.every(v=>v)){c_over=true;$('st2').textContent='مساوی';return true;}return false;}
+function tapC(c){if(c_over||!drop(C,c,'R'))return;drawC();if(endC())return;
+  const cols=[0,1,2,3,4,5,6].filter(k=>!C[k]);let m=null;
+  for(const p of['Y','R']){for(const k of cols){const t=C.slice();drop(t,k,p);if(four(t,p)){m=k;break;}}if(m!==null)break;}
+  if(m===null){cols.sort((a,b)=>Math.abs(3-a)-Math.abs(3-b)+(Math.random()-.5)*2);m=cols[0];}
+  drop(C,m,'Y');drawC();endC();}
+</script>
+</body>
+</html>
